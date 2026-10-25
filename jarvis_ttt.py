@@ -1,22 +1,25 @@
+import os
+import re
+import subprocess
 import ollama
-import pyttsx3
 
-MODEL = "llama3.2"  # Change to the model you pulled
-
-# 1. Initialize Text-to-Speech engine
-engine = pyttsx3.init()
-engine.setProperty("rate", 175)  # Speed of speech (words per minute)
-
-# Optional: Adjust volume (0.0 to 1.0)
-engine.setProperty("volume", 0.9)
+MODEL = "llama3.2"  # Change to your installed model
 
 def speak(text):
-    engine.say(text)
-    engine.runAndWait()
+    # 1. Strip markdown artifacts (*, #, _, `, etc.)
+    clean_text = re.sub(r'[*#_`>-]', '', text)
+    # 2. Flatten all lines and whitespace into a continuous sentence
+    clean_text = " ".join(clean_text.split())
+    
+    # Escape quotes for Windows shell
+    safe_text = clean_text.replace('"', '""').replace("'", "''")
+    
+    # 3. Use Windows native SAPI voice directly (100% offline, never cuts off)
+    ps_command = f'Add-Type -AssemblyName System.Speech; $speak = New-Object System.Speech.Synthesis.SpeechSynthesizer; $speak.Rate = 1; $speak.Speak("{safe_text}");'
+    subprocess.run(["powershell", "-Command", ps_command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 print("=== Ollama Voice Chatbot (Type 'quit' to exit) ===")
 
-# Keep the answers short so it doesn't talk forever
 messages = [
     {"role": "system", "content": "You are a concise voice assistant. Keep all responses brief and under 2-3 sentences."}
 ]
@@ -43,5 +46,5 @@ while True:
     print()
     messages.append({"role": "assistant", "content": full_reply})
 
-    # Speak the response out loud
+    # Speak the entire response back
     speak(full_reply)
